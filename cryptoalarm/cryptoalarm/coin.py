@@ -129,6 +129,7 @@ class Coin():
         Requests are repeated in doubling intervals until max_interval is reached.
 
         :param method: method name
+        :param args: list of arguments for <method>
         :return:dict
         """
         retry_interval = self.config['retry_interval_min']
@@ -141,9 +142,6 @@ class Coin():
         }
 
         while True:
-            if self.stop.is_set():
-                    raise InterruptedError
-
             try:
                 response = requests.post(self.url, json=payload, headers=headers, timeout=(self.config['timeout']['connect'], self.config['timeout']['read']))
                 data = response.json()
@@ -155,6 +153,9 @@ class Coin():
                 if self.reraise:
                     raise e
 
+                if self.stop.is_set(): 
+                    raise InterruptedError 
+
                 logger.warn("%s: request failed, will be repeated after %ss", self.__class__.__name__, retry_interval)
                 time.sleep(retry_interval)
                 retry_interval = min(retry_interval * 2, self.config['retry_interval_max'])
@@ -163,6 +164,8 @@ class Coin():
 
             if 'result' in data and data['result']:
                 return data['result']
+            elif self.stop.is_set(): 
+                    raise InterruptedError 
 
     def __str__(self):
         return self.__unicode__()
